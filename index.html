@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Travel Weather Planner</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+<!-- HERO SECTION -->
+<div class="hero">
+    <h1>🌍 Travel Weather Planner</h1>
+    <p>Discover the best destinations in England based on real-time weather forecasts</p>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+
+    <!-- LEFT CONTENT -->
+    <div class="content">
+
+        <h2>🌟 Best Destination This Week</h2>
+
+        <div id="best-destination" class="best-card">
+            Loading recommendation...
+        </div>
+
+        <h2>🌟 Popular Destinations</h2>
+
+        <div class="destinations-grid">
+
+            <div class="destination-card" onclick="quickSearch('cambridge')">
+                <img src="{{ url_for('static', filename='images/cambridge.jpg') }}">
+                <div class="destination-name">Cambridge</div>
+            </div>
+
+            <div class="destination-card" onclick="quickSearch('oxford')">
+                <img src="{{ url_for('static', filename='images/oxford.jpg') }}">
+                <div class="destination-name">Oxford</div>
+            </div>
+
+            <div class="destination-card" onclick="quickSearch('bristol')">
+                <img src="{{ url_for('static', filename='images/bristol.jpg') }}">
+                <div class="destination-name">Bristol</div>
+            </div>
+
+            <div class="destination-card" onclick="quickSearch('norwich')">
+                <img src="{{ url_for('static', filename='images/norwich.jpg') }}">
+                <div class="destination-name">Norwich</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div>
+
+        <!-- CHATBOT -->
+        <div class="chat-container">
+
+            <h2>💬 Travel Assistant</h2>
+
+            <div id="chatbox"></div>
+
+            <div class="input-area">
+                <input id="message" placeholder="Ask about weather or type 'locations'">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+
+        </div>
+
+        <!-- MAP -->
+        <div class="map-section">
+            <h2>🗺️ Location Preview</h2>
+            <div id="map-preview" class="map-fade show"></div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+// Load best destination
+function loadBestDestination(){
+
+    fetch("/best")
+    .then(res => res.json())
+    .then(data => {
+
+        let box = document.getElementById("best-destination");
+
+        box.innerHTML =
+            "<h3>" + data.city + "</h3>" +
+            "<p>Average temperature: " + data.temperature + "°C</p>" +
+            "<p>Great choice for travel this week 🌤️</p>";
+    });
+}
+
+// Quick search
+function quickSearch(city){
+    document.getElementById("message").value = "weather in " + city;
+    sendMessage();
+}
+
+// Add user message
+function addUserMessage(text){
+
+    let chatbox = document.getElementById("chatbox");
+
+    let messageDiv = document.createElement("div");
+    messageDiv.classList.add("message","user");
+
+    let span = document.createElement("span");
+    span.innerText = text;
+
+    messageDiv.appendChild(span);
+    chatbox.appendChild(messageDiv);
+
+    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+// Typing indicator
+function showTyping(){
+
+    let chatbox = document.getElementById("chatbox");
+
+    let messageDiv = document.createElement("div");
+    messageDiv.classList.add("message","bot");
+    messageDiv.id = "typing";
+
+    let span = document.createElement("span");
+    span.innerText = "Bot is typing...";
+
+    messageDiv.appendChild(span);
+    chatbox.appendChild(messageDiv);
+}
+
+// Remove typing
+function removeTyping(){
+
+    let typing = document.getElementById("typing");
+
+    if(typing){
+        typing.remove();
+    }
+}
+
+// Show bot message
+function showError(message){
+
+    let chatbox = document.getElementById("chatbox");
+
+    let messageDiv = document.createElement("div");
+    messageDiv.classList.add("message","bot");
+
+    let span = document.createElement("span");
+    span.innerText = message;
+
+    messageDiv.appendChild(span);
+    chatbox.appendChild(messageDiv);
+
+    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+// Display forecast
+function displayForecast(data){
+
+    let chatbox = document.getElementById("chatbox");
+
+    let container = document.createElement("div");
+    container.classList.add("forecast-container");
+
+    let title = document.createElement("div");
+    title.classList.add("forecast-title");
+    title.innerText = "5-Day Forecast for " + data.city;
+
+    container.appendChild(title);
+
+    let cardRow = document.createElement("div");
+    cardRow.classList.add("forecast-row");
+
+    data.forecast.forEach(day => {
+
+        let card = document.createElement("div");
+        card.classList.add("weather-card");
+
+        let icon = "<img src='https://openweathermap.org/img/wn/" 
+                    + day.icon + "@2x.png'>";
+
+        card.innerHTML =
+            "<h4>" + day.day + "</h4>" +
+            icon +
+            "<div class='temp'>" + day.temperature + "°C</div>" +
+            "<div class='weather'>" + day.weather + "</div>" +
+            "<div class='suggestion'>" + day.suggestion + "</div>";
+
+        cardRow.appendChild(card);
+
+    });
+
+    container.appendChild(cardRow);
+    chatbox.appendChild(container);
+
+    // MAP FADE ANIMATION
+    let mapPreview = document.getElementById("map-preview");
+
+    // fade out
+    mapPreview.classList.remove("show");
+
+    setTimeout(() => {
+
+        mapPreview.innerHTML =
+            "<iframe src='https://www.google.com/maps?q=" +
+            encodeURIComponent(data.attraction + ", " + data.city) +
+            "&output=embed'></iframe>";
+
+        // fade in
+        setTimeout(() => {
+            mapPreview.classList.add("show");
+        }, 50);
+
+    }, 200);
+
+    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+// Send message
+function sendMessage(){
+
+    let messageInput = document.getElementById("message");
+    let message = messageInput.value;
+
+    if(message.trim() === "") return;
+
+    addUserMessage(message);
+    messageInput.value="";
+
+    showTyping();
+
+    fetch("/chat", {
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/json"
+        },
+
+        body: JSON.stringify({message:message})
+
+    })
+
+    .then(res => res.json())
+
+    .then(data => {
+
+        removeTyping();
+
+        if(data.error){
+            showError(data.error);
+            return;
+        }
+
+        if(data.message){
+            showError(data.message);
+            return;
+        }
+
+        if(data.forecast){
+            displayForecast(data);
+
+            if(data.follow_up){
+                showError(data.follow_up);
+            }
+            return;
+        }
+
+        showError("Something went wrong. Please try again.");
+
+    });
+}
+
+// On load
+window.onload = function(){
+
+    showError("👋 Welcome! Click a destination or ask about travel weather.");
+    loadBestDestination();
+
+}
+
+// Enter key
+document.getElementById("message").addEventListener("keypress", function(e){
+
+    if(e.key === "Enter"){
+        sendMessage();
+    }
+
+});
+
+</script>
+
+</body>
+</html>
