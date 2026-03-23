@@ -1,5 +1,0 @@
-Flask
-requests
-pytest
-python-dotenv
-flask-sqlalchemy
